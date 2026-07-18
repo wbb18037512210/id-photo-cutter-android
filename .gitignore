@@ -1,0 +1,57 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.classpath
+*.run
+.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+flutter_*.png
+
+# Android related (keep platform source, ignore build artifacts)
+android/.gradle/
+android/.kotlin/
+android/app/debug/
+android/app/profile/
+android/app/release/
+android/app/*_module/
+android/captures/
+android/local.properties
+*.jks
+*.keystore
+
+# Project specific
+android_build_sign/
+assets/models/u2net_human_seg.onnx
+_flutter_dl.txt
+_jdk_dl.txt
+build_log*.txt
+build_log.txt
+*.iml
+id_photo_cutter.iml
+android_build_sign.iml
+.idea/
+android/build/

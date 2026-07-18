@@ -1,0 +1,33 @@
+name: id_photo_cutter
+description: 本地离线身份证头像抠图（Android）。完全本地推理，不上传任何服务器。
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.4.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # ONNX Runtime 的 Flutter 原生封装，安卓端 CPU/GPU 推理，离线运行
+  flutter_onnxruntime: ^1.8.0
+  # 图片编解码与像素处理
+  image: ^4.0.0
+  # 相册/相机选图
+  image_picker: ^1.0.7
+  # 保存到系统相册
+  image_gallery_saver: ^2.0.3
+  # 路径工具（插件间接依赖，显式声明以防万一）
+  path_provider: ^2.1.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    # 模型文件（176MB）。请先把 u2net_human_seg.onnx 复制到 assets/models/ 下再 build。
+    # 见 README.md 的“放置模型文件”一节。
+    - assets/models/u2net_human_seg.onnx
