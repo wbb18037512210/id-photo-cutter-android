@@ -1,0 +1,9 @@
+# 身份证头像抠图 APP — 依赖
+# Python 3.13（建议用 venv 隔离）
+rembg==2.0.76
+onnxruntime
+opencv-python-headless
+pillow
+numpy
+pyqt6
+pyinstaller

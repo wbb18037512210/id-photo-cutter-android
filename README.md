@@ -3,6 +3,9 @@
 本地离线运行的身份证头像抠图 App（Flutter + ONNX Runtime Mobile）。
 **完全在手机端推理，不上传任何服务器**，复用桌面版同款 `u2net_human_seg.onnx` 模型。
 
+> 💡 **也有 Windows 桌面版**：仓库 `desktop/` 目录是同一套算法的 PyQt6 桌面程序源码，
+> 已打包为 `id-photo-cutter-windows-x64.zip` 放在 **Releases**（解压后双击 `头像抠图.exe` 即可用，完全离线、三个模型内置）。
+
 功能与桌面版对齐：
 - 打开图片（相册/拍照）后**自动抠图**、**自动校正方向为横向**
 - **自动检测人像**并框选（可“重新检测”）
@@ -23,9 +26,11 @@
    - 通过 Android Studio 的 SDK Manager 或 `sdkmanager` 装好。
 4. 一台 Android 手机（Android 5.0+）或模拟器。
 
-> ✅ **已出包**：本项目已成功构建并签名 `app-release.apk`（v1.0.0，含 v1+v2+v3 签名，
-> 模型 `u2net_human_seg.onnx` 已内置），见仓库 **Releases** 可直接下载安装。
-> 下方步骤用于你在本机从源码重新构建（需先放入模型，见第二节）。
+> ✅ **已出包（Android + Windows 双端）**：
+> - **Android**：`app-release.apk`（v1.0.0，已签名 v1+v2+v3，模型 `u2net_human_seg.onnx` 已内置）→ 见 **Releases** 下载安装。
+> - **Windows 桌面版**：`id-photo-cutter-windows-x64.zip`（独立 PyQt6 程序，三个模型全部内置，完全离线双击即用）→ 见 **Releases** 下载解压运行。
+>
+> 下方步骤用于你在本机从源码重新构建（Android 见第二节起；Windows 见 `desktop/` 目录，内含打包脚本 `build_exe.bat`）。
 
 ---
 

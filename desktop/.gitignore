@@ -1,0 +1,8 @@
+*.onnx
+dist/
+__pycache__/
+*.zip
+build/
+*.bin
+test_output/
+.u2net_idcutter/
