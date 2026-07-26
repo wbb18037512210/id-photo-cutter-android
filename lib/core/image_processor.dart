@@ -36,6 +36,31 @@ class ProcessedImage {
         height = original.height;
 }
 
+/// 证件照底色模式（白 / 蓝 / 红 / 透明）。
+enum BgMode { white, blue, red, transparent }
+
+/// 各底色对应的 RGB（透明用 null 表示）。
+const Map<BgMode, (int, int, int)> bgRgb = {
+  BgMode.white: (255, 255, 255),
+  BgMode.blue: (47, 111, 224),
+  BgMode.red: (224, 73, 77),
+};
+
+/// 标准证件照尺寸预设（像素，300dpi 常见规格）。
+class SizePreset {
+  final String name;
+  final int w;
+  final int h;
+  const SizePreset(this.name, this.w, this.h);
+}
+
+const List<SizePreset> kSizePresets = [
+  SizePreset('一寸', 295, 413),
+  SizePreset('二寸', 413, 626),
+  SizePreset('标准', 500, 670),
+  SizePreset('大一寸', 390, 567),
+];
+
 /// 把 320x320 的蒙版双线性上采样到原图尺寸。
 Float32List resizeMaskBilinear(Float32List src, int sw, int sh, int dw, int dh) {
   final out = Float32List(dw * dh);
@@ -177,16 +202,17 @@ img.Color sampleRgba(ProcessedImage p, double fx, double fy) {
   return img.ColorRgba8(r, g, b, (a * 255).round().clamp(0, 255));
 }
 
-/// 导出标准证件照：把选区拉伸到 outW×outH，合成到白底（或透明）。
+/// 导出标准证件照：把选区拉伸到 outW×outH，合成到底色（白/蓝/红/透明）。
 /// 与桌面版 stretch_to_size 行为一致——无论选区多大都强制拉伸到目标尺寸。
 img.Image exportIdPhoto(
   ProcessedImage p,
   CropRect crop, {
-  bool whiteBg = true,
+  BgMode bg = BgMode.white,
   int outW = 500,
   int outH = 670,
 }) {
   final out = img.Image(width: outW, height: outH);
+  final solid = bg != BgMode.transparent ? bgRgb[bg]! : null;
   for (int v = 0; v < outH; v++) {
     for (int u = 0; u < outW; u++) {
       // 输出像素 -> 选区归一化中心坐标 (-0.5..0.5)
@@ -198,10 +224,10 @@ img.Image exportIdPhoto(
       final c = sampleRgba(p, sx, sy);
       final a = (c.a / 255.0).clamp(0.0, 1.0); // 蒙版 alpha
       int r, g, b, outA;
-      if (whiteBg) {
-        r = (c.r * a + 255 * (1 - a)).round().clamp(0, 255);
-        g = (c.g * a + 255 * (1 - a)).round().clamp(0, 255);
-        b = (c.b * a + 255 * (1 - a)).round().clamp(0, 255);
+      if (solid != null) {
+        r = (c.r * a + solid.$1 * (1 - a)).round().clamp(0, 255);
+        g = (c.g * a + solid.$2 * (1 - a)).round().clamp(0, 255);
+        b = (c.b * a + solid.$3 * (1 - a)).round().clamp(0, 255);
         outA = 255;
       } else {
         r = c.r.toInt();

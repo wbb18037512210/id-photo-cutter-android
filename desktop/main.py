@@ -1,8 +1,8 @@
 """
-main.py — 身份证头像抠图桌面软件（PyQt6，完全本地处理）
+main.py — 证件照工作室桌面软件（PyQt6，完全本地处理）
 
 运行：python main.py
-打包：pyinstaller --onefile --windowed --name 头像抠图 main.py
+打包：pyinstaller 头像抠图.spec  （见 头像抠图.spec）
 """
 import sys
 import os
@@ -57,7 +57,6 @@ def _global_excepthook(etype, value, tb):
             print(msg)
     except Exception:
         print(msg)
-    # 记录到文件便于排查
     try:
         with open(os.path.join(os.path.expanduser("~"), "idcutter_error.log"), "a", encoding="utf-8") as f:
             f.write(msg + "\n")
@@ -123,23 +122,33 @@ def pil_to_pixmap(pil_img):
     return QPixmap.fromImage(qimg)
 
 
+# ------------------------- 底色色板映射 -------------------------
+BG_HEX = {
+    "white": "#FFFFFF",
+    "blue": "#2F6FE0",
+    "red": "#E0494D",
+    "transparent": "#D7DAE2",
+}
+BG_LABEL = {"white": "白底", "blue": "蓝底", "red": "红底", "transparent": "透明"}
+
+
 # ------------------------- 图片显示标签（支持框选/overlay） -------------------------
 class ImageLabel(QLabel):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setMinimumSize(220, 220)
-        self.setStyleSheet("border:1px solid #bbb; background:#ececec;")
+        self.setStyleSheet("background:#F1F2F6; border:1px solid #E7E9EF; border-radius:16px;")
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setAcceptDrops(False)
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.NoContextMenu)
-        self._src = None           # 原始 QPixmap
+        self._src = None
         self._scaled = None
         self._scale = 1.0
         self._fit_scale = 1.0
-        self._user_zoom = 1.0      # 用户缩放倍数（1.0 = 适应窗口）
-        self._pan = QPoint(0, 0)   # 平移偏移（像素）
+        self._user_zoom = 1.0
+        self._pan = QPoint(0, 0)
         self._offset = QPoint(0, 0)
-        self._overlay = None       # QRect（原图像素坐标）
+        self._overlay = None
         self._sel_start = None
         self._sel_cur = None
         self._selecting = False
@@ -242,13 +251,13 @@ class ImageLabel(QLabel):
         p.drawPixmap(self._offset, self._scaled)
         if self._overlay is not None:
             r = self._to_disp(self._overlay)
-            pen = QPen(QColor(220, 60, 60), 2, Qt.PenStyle.DashLine)
+            pen = QPen(QColor(91, 91, 232), 2.5, Qt.PenStyle.SolidLine)
             p.setPen(pen)
             p.drawRect(r)
         if self._sel_start is not None and self._sel_cur is not None:
             r = self._rect(self._sel_start, self._sel_cur)
             rd = self._to_disp(r)
-            pen = QPen(QColor(40, 130, 240), 2, Qt.PenStyle.DashLine)
+            pen = QPen(QColor(47, 111, 224), 2, Qt.PenStyle.DashLine)
             p.setPen(pen)
             p.drawRect(rd)
 
@@ -269,7 +278,6 @@ class ImageLabel(QLabel):
     def mousePressEvent(self, e):
         if self._src is None:
             return
-        # 右键 / Ctrl+左键：平移视图
         if e.button() == Qt.MouseButton.RightButton or \
            (e.button() == Qt.MouseButton.LeftButton and
             (e.modifiers() & Qt.KeyboardModifier.ControlModifier)):
@@ -278,7 +286,6 @@ class ImageLabel(QLabel):
             self._pan_origin = QPoint(self._pan)
             self.setCursor(Qt.CursorShape.ClosedHandCursor)
             return
-        # 否则：框选头像区域
         self._selecting = True
         self._sel_start = self._to_orig(e.pos())
         self._sel_cur = self._sel_start
@@ -314,7 +321,7 @@ class ImageLabel(QLabel):
 
 # ------------------------- 人像定位工作线程（避免 UI 卡死） -------------------------
 class DetectWorker(QThread):
-    finished = pyqtSignal(object)   # bbox tuple or None
+    finished = pyqtSignal(object)
     error = pyqtSignal(str)
 
     def __init__(self, image_bgr, model_name):
@@ -348,45 +355,139 @@ class CutWorker(QThread):
             self.error.emit(str(ex))
 
 
+# ------------------------- 统一 QSS 样式 -------------------------
+QSS = """
+QWidget {
+    font-family: "PingFang SC", "Microsoft YaHei", "Segoe UI", "Noto Sans SC", sans-serif;
+    font-size: 13px;
+    color: #14161C;
+}
+QMainWindow { background: #F5F6F8; }
+QLabel#title { font-size: 20px; font-weight: 600; color: #14161C; }
+QLabel#privacy { color: #5B5BE8; font-weight: 600; font-size: 12px; }
+QLabel#status { color: #5A606E; font-size: 11px; }
+QLabel#tip { color: #9298A6; font-size: 11px; }
+QLabel#zoom { color: #9298A6; font-size: 11px; }
+.image-label {
+    background: #F1F2F6;
+    border: 1px solid #E7E9EF;
+    border-radius: 16px;
+}
+QPushButton {
+    background: #FFFFFF;
+    border: 1px solid #D8DBE3;
+    border-radius: 12px;
+    padding: 10px 16px;
+    color: #14161C;
+    font-weight: 500;
+}
+QPushButton:hover { background: #F1F2F6; }
+QPushButton:disabled { color: #9298A6; background: #F1F2F6; }
+QPushButton#primary {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #6366F1, stop:1 #8B5CF6);
+    color: #FFFFFF; border: none; font-weight: 600; padding: 12px 20px;
+}
+QPushButton#primary:hover {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #6F71F3, stop:1 #9B6CF8);
+}
+QPushButton#primary:disabled { background: #E7E9EF; color: #9298A6; }
+QPushButton#icon {
+    background: #F1F2F6; border: none; border-radius: 12px; padding: 8px 10px;
+}
+QPushButton#icon:hover { background: #E7E9EF; }
+QGroupBox {
+    border: 1px solid #E7E9EF; border-radius: 16px; padding: 16px; margin-top: 10px;
+    background: #FFFFFF;
+}
+QGroupBox::title {
+    subcontrol-origin: margin; left: 16px; padding: 0 6px;
+    color: #5A606E; font-weight: 600; font-size: 12px;
+}
+QComboBox {
+    background: #FFFFFF; border: 1px solid #D8DBE3; border-radius: 12px;
+    padding: 9px 12px;
+}
+QComboBox::drop-down { border: none; width: 26px; }
+QComboBox QAbstractItemView {
+    background: #FFFFFF; border: 1px solid #E7E9EF; border-radius: 8px;
+    selection-background-color: #ECECFB; outline: 0px;
+}
+QCheckBox { spacing: 8px; color: #14161C; }
+QCheckBox::indicator {
+    width: 18px; height: 18px; border-radius: 5px;
+    border: 1px solid #D8DBE3; background: #FFFFFF;
+}
+QCheckBox::indicator:checked {
+    background: qlineargradient(x1:0,y1:0,x2:1,y2:1, stop:0 #6366F1, stop:1 #8B5CF6);
+    border: none;
+}
+"""
+
+
 # ------------------------- 主窗口 -------------------------
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("身份证头像抠图 · 本地处理")
-        self.resize(960, 620)
-        self.original = None        # BGR numpy
-        self.crop_rect = None       # (x,y,w,h) 原图坐标
-        self.fg_rgba = None         # 抠好的前景 RGBA
-        self.result_rgba = None     # 最终（含底色/尺寸）
+        self.setWindowTitle("证件照工作室 · 本地处理")
+        self.resize(1040, 660)
+        self.original = None
+        self.crop_rect = None
+        self.fg_rgba = None
+        self.result_rgba = None
         self.worker = None
-        self.detect_worker = None   # 人像定位线程
-        self._last_cut_rect = None  # 上次已抠图的区域（避免重复抠图）
+        self.detect_worker = None
+        self._last_cut_rect = None
+        self._bg_name = "white"   # 当前底色
+        self.bg_buttons = {}
         self._build_ui()
+
+    def _swatch_style(self, color_hex, selected):
+        border = "#5B5BE8" if selected else "transparent"
+        return (f"background:{color_hex}; border-radius:18px; border:2px solid {border};"
+                f"{'padding:2px;' if selected else ''}")
 
     def _build_ui(self):
         central = QWidget()
         self.setCentralWidget(central)
         root = QHBoxLayout(central)
+        root.setContentsMargins(20, 20, 20, 20)
+        root.setSpacing(20)
 
-        # 左侧：原图 + 操作
+        # ============ 左：原图 + 操作 ============
         left = QVBoxLayout()
+        left.setSpacing(14)
+
+        # 标题区
+        head = QHBoxLayout()
+        title = QLabel("证件照工作室")
+        title.setObjectName("title")
+        privacy = QLabel("🔒 本地离线 · 数据不出本机")
+        privacy.setObjectName("privacy")
+        head.addWidget(title)
+        head.addStretch(1)
+        head.addWidget(privacy)
+        left.addLayout(head)
+
         self.src_label = ImageLabel()
         self.src_label.parent_window = self
+        self.src_label.setObjectName("src")
+        self.src_label.setProperty("class", "image-label")
         left.addWidget(self.src_label, 1)
 
-        # 缩放/旋转工具条（放大/缩小/适应窗口/左转/右转 + 倍率显示）
+        # 缩放/旋转工具条
         zrow = QHBoxLayout()
+        zrow.setSpacing(8)
         self.btn_zoom_out = QPushButton("－")
         self.btn_zoom_in = QPushButton("＋")
         self.btn_fit = QPushButton("适应窗口")
         self.btn_rot_left = QPushButton("↺ 左转")
         self.btn_rot_right = QPushButton("↻ 右转")
         self.lbl_zoom = QLabel("100%")
-        self.lbl_zoom.setStyleSheet("color:#666; font-size:11px;")
-        self.btn_zoom_out.setMaximumWidth(34)
-        self.btn_zoom_in.setMaximumWidth(34)
-        self.btn_rot_left.setMaximumWidth(56)
-        self.btn_rot_right.setMaximumWidth(56)
+        self.lbl_zoom.setObjectName("zoom")
+        for b in (self.btn_zoom_out, self.btn_zoom_in, self.btn_fit,
+                  self.btn_rot_left, self.btn_rot_right):
+            b.setObjectName("icon")
+            b.setMaximumWidth(64 if b in (self.btn_rot_left, self.btn_rot_right) else 40)
         self.btn_zoom_out.clicked.connect(lambda: self.src_label.zoom_by(1 / 1.25))
         self.btn_zoom_in.clicked.connect(lambda: self.src_label.zoom_by(1.25))
         self.btn_fit.clicked.connect(self.src_label.reset_view)
@@ -402,29 +503,41 @@ class MainWindow(QMainWindow):
         zrow.addStretch(1)
         left.addLayout(zrow)
 
-        btn_open = QPushButton("打开图片")
-        btn_open.clicked.connect(self.open_image)
-        btn_detect = QPushButton("自动检测头像")
-        btn_detect.clicked.connect(self.auto_detect)
-        btn_clear = QPushButton("清除选区")
-        btn_clear.clicked.connect(self.clear_crop)
         row = QHBoxLayout()
+        row.setSpacing(10)
+        btn_open = QPushButton("打开图片")
+        btn_open.setObjectName("primary")
+        btn_detect = QPushButton("自动检测头像")
+        btn_clear = QPushButton("清除选区")
+        btn_open.clicked.connect(self.open_image)
+        btn_detect.clicked.connect(self.auto_detect)
+        btn_clear.clicked.connect(self.clear_crop)
         row.addWidget(btn_open)
         row.addWidget(btn_detect)
         row.addWidget(btn_clear)
         left.addLayout(row)
+
         tip = QLabel("提示：可直接拖入图片；在左侧按住鼠标框选头像区域。滚轮缩放、右键拖动平移，或用 －/＋ 放大后精确框选；用 ↺左转/↻右转 调整图片方向。")
-        tip.setStyleSheet("color:#666; font-size:11px;")
+        tip.setObjectName("tip")
+        tip.setWordWrap(True)
         left.addWidget(tip)
         root.addLayout(left, 1)
 
-        # 右侧：结果 + 选项
+        # ============ 右：结果 + 选项 ============
         right = QVBoxLayout()
+        right.setSpacing(14)
+        res_title = QLabel("预览结果")
+        res_title.setObjectName("title")
+        right.addWidget(res_title)
+
         self.res_label = ImageLabel()
+        self.res_label.setObjectName("res")
+        self.res_label.setProperty("class", "image-label")
         right.addWidget(self.res_label, 1)
 
         opt = QGroupBox("输出选项")
         og = QVBoxLayout(opt)
+        og.setSpacing(14)
 
         h1 = QHBoxLayout()
         h1.addWidget(QLabel("抠图模型："))
@@ -434,18 +547,23 @@ class MainWindow(QMainWindow):
             "u2net_human_seg（更高精度·已内置·离线）",
             "u2net（通用·已内置·离线）",
         ])
-        self.cmb_model.setCurrentIndex(1)  # 默认高精度模型 u2net_human_seg
-        h1.addWidget(self.cmb_model)
+        self.cmb_model.setCurrentIndex(1)
+        h1.addWidget(self.cmb_model, 1)
         self.cmb_model.currentTextChanged.connect(self.on_model_changed)
         og.addLayout(h1)
 
+        # 底色色板
         h2 = QHBoxLayout()
         h2.addWidget(QLabel("底色："))
-        self.cmb_bg = QComboBox()
-        self.cmb_bg.addItems(["透明", "白底", "蓝底", "红底"])
-        self.cmb_bg.setCurrentText("白底")  # 默认白底
-        self.cmb_bg.currentTextChanged.connect(lambda _: self.update_preview())
-        h2.addWidget(self.cmb_bg)
+        for name in ("white", "blue", "red", "transparent"):
+            b = QPushButton()
+            b.setFixedSize(34, 34)
+            b.setCursor(Qt.CursorShape.PointingHandCursor)
+            b.setStyleSheet(self._swatch_style(BG_HEX[name], name == self._bg_name))
+            b.clicked.connect(lambda _, n=name: self.on_bg_selected(n))
+            self.bg_buttons[name] = b
+            h2.addWidget(b)
+        h2.addStretch(1)
         og.addLayout(h2)
 
         self.chk_trim = QCheckBox("去透明边（裁剪到头像）")
@@ -455,23 +573,24 @@ class MainWindow(QMainWindow):
 
         right.addWidget(opt)
 
+        h4 = QHBoxLayout()
+        h4.setSpacing(10)
         btn_cut = QPushButton("开始抠图")
-        btn_cut.clicked.connect(self.do_cut)
+        btn_cut.setObjectName("primary")
         btn_save = QPushButton("保存结果")
-        btn_save.clicked.connect(self.save_result)
         self.btn_save = btn_save
         btn_save.setEnabled(False)
-        h4 = QHBoxLayout()
+        btn_cut.clicked.connect(self.do_cut)
+        btn_save.clicked.connect(self.save_result)
         h4.addWidget(btn_cut)
         h4.addWidget(btn_save)
         right.addLayout(h4)
 
         self.status = QLabel("就绪。请先打开一张身份证照片。")
-        self.status.setStyleSheet("color:#444; font-size:11px;")
+        self.status.setObjectName("status")
         right.addWidget(self.status)
         root.addLayout(right, 1)
 
-        # 支持拖拽
         self.setAcceptDrops(True)
 
     # ---- 拖拽 ----
@@ -497,7 +616,6 @@ class MainWindow(QMainWindow):
         except Exception as ex:
             QMessageBox.warning(self, "错误", str(ex))
             return
-        # 切换图片时停止旧线程
         if self.detect_worker and self.detect_worker.isRunning():
             self.detect_worker.quit()
             self.detect_worker.wait(3000)
@@ -513,7 +631,6 @@ class MainWindow(QMainWindow):
         self.src_label.set_image(bgr_to_pixmap(img))
         self.res_label.set_image(QPixmap())
         self.status.setText(f"已载入：{os.path.basename(path)}（{img.shape[1]}×{img.shape[0]}），自动抠图中…")
-        # 打开/拖入图片后自动开始抠图（自动定位头像并生成结果）
         self.auto_detect()
 
     def auto_detect(self):
@@ -530,23 +647,19 @@ class MainWindow(QMainWindow):
         self.detect_worker.start()
 
     def on_detect_done(self, bbox):
-        # 忽略旧线程的结果（例如用户已切换图片）
         if self.sender() != self.detect_worker:
             return
         if bbox is not None:
             self.crop_rect = bbox
             self.status.setText("已精确定位人像，正在校正方向…")
         else:
-            # 兜底：未检测到前景时使用身份证默认区域
             self.crop_rect = core.pick_head_region(self.original)
             self.status.setText("未检测到明确人像，使用默认区域，正在校正方向…")
-        # 自动检测头像后，将图片方向修正为横向长方形（并同步映射头像框）
         if self.original.shape[0] > self.original.shape[1]:
             self.original, self.crop_rect = core.orient_landscape(self.original, self.crop_rect)
             self.src_label.set_image(bgr_to_pixmap(self.original))
             self.status.setText(self.status.text() + "（已旋转为横向）")
         self.src_label.set_overlay(QRect(*self.crop_rect))
-        # 继续抠图流程
         self.do_cut()
 
     def on_detect_error(self, msg):
@@ -559,6 +672,12 @@ class MainWindow(QMainWindow):
         self.crop_rect = None
         self.src_label.clear_overlay()
         self.status.setText("已清除选区，将处理整张图片。")
+
+    def on_bg_selected(self, name):
+        self._bg_name = name
+        for n, b in self.bg_buttons.items():
+            b.setStyleSheet(self._swatch_style(BG_HEX[n], n == name))
+        self.update_preview()
 
     def on_crop_selected(self, rect):
         self.crop_rect = (rect.x(), rect.y(), rect.width(), rect.height())
@@ -574,18 +693,15 @@ class MainWindow(QMainWindow):
         return "u2net"
 
     def on_model_changed(self):
-        # 切换抠图模型后，强制用新模型重新抠图（不重新自动检测人像）
         if self.original is None:
             return
         self._last_cut_rect = None
         self.do_cut()
 
     def rotate_src_left(self):
-        """工具栏「左转」按钮：逆时针旋转 90°。"""
         self._rotate_src(clockwise=False)
 
     def rotate_src_right(self):
-        """工具栏「右转」按钮：顺时针旋转 90°。"""
         self._rotate_src(clockwise=True)
 
     def _rotate_src(self, clockwise):
@@ -610,7 +726,6 @@ class MainWindow(QMainWindow):
             return
         if self.detect_worker and self.detect_worker.isRunning():
             return
-        # 同一区域已抠过图，直接刷新预览，避免重复推理
         if (self.fg_rgba is not None and self.crop_rect is not None
                 and self.crop_rect == self._last_cut_rect):
             self.update_preview()
@@ -628,11 +743,9 @@ class MainWindow(QMainWindow):
         self.worker.start()
 
     def on_cut_done(self, rgba):
-        # 忽略旧线程的结果（例如用户已切换图片）
         if self.sender() != self.worker:
             return
         self.fg_rgba = rgba
-        # 用前景蒙版反推精确人像框，修正自动检测/框选的误差
         bx = core.content_bbox(rgba)
         if bx is not None and self.crop_rect is not None:
             cx, cy, cw, ch = self.crop_rect
@@ -653,7 +766,7 @@ class MainWindow(QMainWindow):
         self._last_cut_rect = self.crop_rect
         self.update_preview()
         self.btn_save.setEnabled(True)
-        self.status.setText("抠图完成，已精确锁定人像。可手动框选微调，或调整底色/尺寸后保存。")
+        self.status.setText("抠图完成，已精确锁定人像。可手动框选微调，或调整底色后保存。")
 
     def on_cut_error(self, msg):
         if self.sender() != self.worker:
@@ -664,14 +777,11 @@ class MainWindow(QMainWindow):
     def _build_result(self):
         if self.fg_rgba is None:
             return None
-        bg = self.cmb_bg.currentText()
-        bg_name = {"透明": "transparent", "白底": "white", "蓝底": "blue", "红底": "red"}[bg]
         fg = self.fg_rgba
         if self.chk_trim.isChecked():
             fg = core.crop_to_content(fg)
-        # 结果一律拉伸到 500×670（无论是否框选、框多大）
         size = core.PHOTO_SIZES.get("500x670", (500, 670))
-        return core.stretch_to_size(fg, size, bg_name)
+        return core.stretch_to_size(fg, size, self._bg_name)
 
     def update_preview(self):
         if self.fg_rgba is None:
@@ -690,10 +800,8 @@ class MainWindow(QMainWindow):
             return
         ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         path = os.path.join(desktop, f"头像_{ts}.png")
-        bg = self.cmb_bg.currentText()
-        bg_name = {"透明": "transparent", "白底": "white", "蓝底": "blue", "红底": "red"}[bg]
         try:
-            core.save_result(self.result_rgba, path, bg_name)
+            core.save_result(self.result_rgba, path, self._bg_name)
         except Exception as ex:
             QMessageBox.critical(self, "保存失败", str(ex))
             return
@@ -705,6 +813,7 @@ def main():
         selftest()
         return
     app = App(sys.argv)
+    app.setStyleSheet(QSS)
     sys.excepthook = _global_excepthook
     win = MainWindow()
     win.show()

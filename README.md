@@ -1,7 +1,11 @@
-# 身份证头像抠图 · Android 版
+# 证件照工作室 · Android 版
 
-本地离线运行的身份证头像抠图 App（Flutter + ONNX Runtime Mobile）。
+本地离线运行的证件照制作 App（Flutter + ONNX Runtime Mobile）。
 **完全在手机端推理，不上传任何服务器**，复用桌面版同款 `u2net_human_seg.onnx` 模型。
+
+> 🎨 **统一设计规范**：双端（Android + Windows）共用同一套设计语言 **Aperture Design System**，
+> 详见仓库根目录 [`DESIGN.md`](./DESIGN.md)（配色 / 字体 / 间距 / 圆角 / 阴影 / 组件 / 微交互）。
+> 界面已重做：沉浸式编辑画布、底色色板、标准尺寸预设、强调色按钮与隐私徽章。
 
 > 💡 **也有 Windows 桌面版**：仓库 `desktop/` 目录是同一套算法的 PyQt6 桌面程序源码，
 > 已打包为 `id-photo-cutter-windows-x64.zip` 放在 **Releases**（解压后双击 `头像抠图.exe` 即可用，完全离线、三个模型内置）。

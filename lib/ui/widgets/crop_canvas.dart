@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../core/image_processor.dart';
+import '../../theme/app_theme.dart';
 
 /// 可交互选区画布：显示原图，允许拖动移动选区、拖四角缩放选区。
 /// 旋转由工具栏“旋转源图”完成（与桌面版一致，选区本身保持轴对齐）。
@@ -168,26 +169,26 @@ class _OverlayPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // 选区外变暗
-    final dim = Paint()..color = Colors.black.withOpacity(0.55);
+    // 选区外变暗（柔和中性遮罩）
+    final dim = Paint()..color = const Color(0x80000000);
     final path = Path()
       ..addRect(Rect.fromLTWH(0, 0, size.width, size.height))
       ..addRect(cropRect)
       ..fillType = PathFillType.evenOdd;
     canvas.drawPath(path, dim);
 
-    // 选区边框
+    // 选区边框（强调色）
     canvas.drawRect(
       cropRect,
       Paint()
-        ..color = Colors.white
+        ..color = AppColors.accent
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 2,
+        ..strokeWidth = 2.5,
     );
 
     // 三分线
     final line = Paint()
-      ..color = Colors.white.withOpacity(0.5)
+      ..color = Colors.white.withValues(alpha: 0.45)
       ..strokeWidth = 1;
     for (int i = 1; i <= 2; i++) {
       final fx = cropRect.left + cropRect.width * i / 3;
@@ -196,16 +197,21 @@ class _OverlayPainter extends CustomPainter {
       canvas.drawLine(Offset(cropRect.left, fy), Offset(cropRect.right, fy), line);
     }
 
-    // 四角把手
-    final handle = Paint()..color = Colors.white;
-    const r = 7.0;
+    // 四角把手：强调色实心 + 白色细环，触控友好
+    final handleFill = Paint()..color = AppColors.accent;
+    final handleRing = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+    const r = 9.0;
     for (final p in [
       Offset(cropRect.left, cropRect.top),
       Offset(cropRect.right, cropRect.top),
       Offset(cropRect.left, cropRect.bottom),
       Offset(cropRect.right, cropRect.bottom),
     ]) {
-      canvas.drawCircle(p, r, handle);
+      canvas.drawCircle(p, r, handleFill);
+      canvas.drawCircle(p, r, handleRing);
     }
   }
 
